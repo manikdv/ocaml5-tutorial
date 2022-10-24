@@ -1,4 +1,6 @@
-let _num_domains = try int_of_string Sys.argv.(1) with _ -> 1
+module T = Domainslib.Task
+
+let num_domains = try int_of_string Sys.argv.(1) with _ -> 1
 let n_times = try int_of_string Sys.argv.(2) with _ -> 50
 let board_size = try int_of_string Sys.argv.(3) with _ -> 1024
 
@@ -42,23 +44,25 @@ let print g =
   done;
   print_endline ""
 
-let next () =
+let next pool () =
   let g = !rg in
   let new_g = !rg' in
-  for x = 0 to board_size - 1 do
-    for y = 0 to board_size - 1 do
+  T.parallel_for pool ~start:0 ~finish:(board_size-1) ~body:(fun x ->
+    T.parallel_for pool ~start:0 ~finish:(board_size-1) ~body:(fun y ->
       new_g.(x).(y) <- next_cell g x y
-    done
-  done;
+    )
+  );
   rg := new_g;
   rg' := g
 
-let rec repeat n =
+let rec repeat pool n =
   match n with
   | 0 -> ()
-  | _ -> next (); repeat (n-1)
+  | _ -> next pool (); repeat pool (n-1)
 
-let ()=
+let () =
   print !rg;
-  repeat n_times;
+  let pool = T.setup_pool ~num_domains:(num_domains - 1) () in
+  T.run pool (fun _ -> repeat pool n_times);
+  T.teardown_pool pool;
   print !rg

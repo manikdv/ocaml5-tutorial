@@ -24,8 +24,16 @@ end = struct
     Condition.signal r.condition;
     Mutex.unlock r.mutex
 
-  let pop r = failwith "not implemented"
-end
+  let pop r =
+    Mutex.lock r.mutex;
+    while List.length r.contents == 0 do
+      Condition.wait r.condition r.mutex
+    done;
+    let v = List.hd r.contents in
+    r.contents <- List.tl r.contents;
+    Mutex.unlock r.mutex;
+    v
+  end
 
 let s = Atomic_stack.make ()
 

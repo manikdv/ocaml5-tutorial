@@ -14,10 +14,19 @@ let rec tak x y z =
     tak (tak (x-1) y z) (tak (y-1) z x) (tak (z-1) x y)
   else z
 
-let rec tak_par p x y z = failwith "not implemented"
-
+let rec tak_par pool x y z =
+  if x < 20 && y < 20 then
+    tak x y z
+  else if x > y then
+    let p1 = T.async pool (fun _ -> tak_par pool (x-1) y z) in
+    let p2 = T.async pool (fun _ -> tak_par pool (y-1) z x) in
+    let p3 = T.async pool (fun _ -> tak_par pool (z-1) x y) in
+    tak_par pool (T.await pool p1) (T.await pool p2) (T.await pool p3)
+  else
+    z
+    
 let main () =
-  let p = T.setup_pool ~num_additional_domains:(num_domains - 1) () in
+  let p = T.setup_pool ~num_domains:(num_domains - 1) () in
   let r = T.run p (fun _ -> tak_par p x y z) in
   T.teardown_pool p;
   Printf.printf "tak %d %d %d = %d\n" x y z r
